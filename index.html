@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard PMO — RETABET · Portafolio de Proyectos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@600;700&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface-hover: #22253a;
+    --border: #2a2d3e;
+    --text: #e4e5ea;
+    --text-dim: #8b8d9a;
+    --accent: #6366f1;
+    --accent-soft: rgba(99,102,241,0.12);
+    --green: #22c55e;
+    --green-soft: rgba(34,197,94,0.12);
+    --amber: #f59e0b;
+    --amber-soft: rgba(245,158,11,0.12);
+    --red: #ef4444;
+    --red-soft: rgba(239,68,68,0.12);
+    --cyan: #06b6d4;
+    --cyan-soft: rgba(6,182,212,0.12);
+    --rose: #f43f5e;
+    --rose-soft: rgba(244,63,94,0.12);
+    --radius: 16px;
+    --font-body: 'DM Sans', sans-serif;
+    --font-display: 'Playfair Display', serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .noise {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 256px 256px;
+  }
+
+  .container {
+    position: relative; z-index: 1;
+    max-width: 1400px; margin: 0 auto;
+    padding: 2rem 2rem 4rem;
+  }
+
+  .header { margin-bottom: 2.5rem; }
+  .header-top { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem; }
+  .header h1 {
+    font-family: var(--font-display); font-size: 2.2rem; font-weight: 700;
+    background: linear-gradient(135deg, #e4e5ea 30%, var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .subtitle { color: var(--text-dim); font-size: 0.92rem; margin-top: 0.3rem; }
+  .header .date { color: var(--text-dim); font-size: 0.85rem; letter-spacing: 0.04em; }
+
+  /* KPI row */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+    gap: 1rem; margin-bottom: 2rem;
+  }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.3rem 1.4rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
+  .kpi-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 0.4rem; }
+  .kpi-value { font-size: 1.8rem; font-weight: 700; }
+  .kpi-sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.25rem; }
+
+  /* Timeline bar */
+  .timeline-bar {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.2rem 1.6rem; margin-bottom: 2rem;
+  }
+  .timeline-bar h3 { font-family: var(--font-display); font-size: 1rem; margin-bottom: 0.8rem; }
+  .deadlines { display: flex; flex-wrap: wrap; gap: 0.8rem; }
+  .dl-chip {
+    display: flex; align-items: center; gap: 0.4rem;
+    background: rgba(255,255,255,0.04); border-radius: 8px; padding: 0.4rem 0.8rem;
+    font-size: 0.78rem;
+  }
+  .dl-chip .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Cards */
+  .projects-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.2rem; margin-bottom: 2rem;
+  }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.3); }
+
+  .card-header {
+    padding: 1.3rem 1.5rem 0.7rem;
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;
+  }
+  .card-title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; }
+  .card-client { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.15rem; }
+  .badge {
+    font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 0.22rem 0.6rem; border-radius: 99px; white-space: nowrap;
+  }
+  .badge-green { background: var(--green-soft); color: var(--green); }
+  .badge-amber { background: var(--amber-soft); color: var(--amber); }
+  .badge-red   { background: var(--red-soft);   color: var(--red); }
+  .badge-cyan  { background: var(--cyan-soft);  color: var(--cyan); }
+
+  .card-body { padding: 0 1.5rem 1.3rem; }
+
+  .progress-track {
+    height: 6px; border-radius: 3px; background: var(--border); margin: 0.5rem 0 0.4rem; overflow: hidden;
+  }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 1.2s cubic-bezier(.4,0,.2,1); }
+
+  .progress-labels { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-dim); }
+
+  .stat-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.7rem 0; }
+  .stat-pill {
+    display: flex; align-items: center; gap: 0.3rem;
+    background: rgba(255,255,255,0.04); border-radius: 8px; padding: 0.3rem 0.6rem;
+    font-size: 0.7rem;
+  }
+  .stat-pill .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+  .detail-section { margin-top: 0.6rem; }
+  .detail-section h4 {
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-dim); margin-bottom: 0.3rem;
+  }
+  .detail-section ul { list-style: none; padding: 0; }
+  .detail-section li {
+    position: relative; padding-left: 0.9rem; font-size: 0.78rem; color: var(--text);
+    line-height: 1.65;
+  }
+  .detail-section li::before {
+    content: ''; position: absolute; left: 0; top: 0.5rem;
+    width: 5px; height: 5px; border-radius: 50%;
+  }
+  .done li::before { background: var(--green); }
+  .pending li::before { background: var(--amber); }
+  .risks li::before { background: var(--red); }
+  .blocked li::before { background: var(--rose); }
+
+  .toggle-detail {
+    background: none; border: 1px solid var(--border); color: var(--text-dim);
+    font-size: 0.7rem; padding: 0.25rem 0.7rem; border-radius: 8px;
+    cursor: pointer; margin-top: 0.5rem; transition: all 0.2s;
+  }
+  .toggle-detail:hover { background: var(--surface-hover); color: var(--text); }
+
+  .detail-extra { display: none; margin-top: 0.5rem; }
+  .detail-extra.open { display: block; }
+
+  .deadline-tag {
+    font-size: 0.68rem; color: var(--text-dim); margin-top: 0.5rem; padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+  .deadline-tag strong { color: var(--text); }
+
+  /* Charts */
+  .charts-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 1.2rem; margin-bottom: 2rem;
+  }
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.3rem 1.5rem;
+  }
+  .chart-card h3 { font-family: var(--font-display); font-size: 1rem; margin-bottom: 0.8rem; }
+
+  /* Table */
+  .table-wrap {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: auto; margin-bottom: 2rem;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  th {
+    text-align: left; padding: 0.9rem 1rem;
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-dim); border-bottom: 1px solid var(--border);
+  }
+  td { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface-hover); }
+
+  .risk-alto { color: var(--red); font-weight: 600; }
+  .risk-medio { color: var(--amber); font-weight: 600; }
+  .risk-bajo { color: var(--green); font-weight: 600; }
+
+  /* Alerts */
+  .alerts {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.5rem; margin-bottom: 2rem;
+  }
+  .alerts h3 { font-family: var(--font-display); font-size: 1rem; margin-bottom: 1rem; }
+  .alert-item {
+    display: flex; gap: 0.8rem; padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border); font-size: 0.82rem; align-items: flex-start;
+  }
+  .alert-item:last-child { border-bottom: none; }
+  .alert-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.05rem; }
+  .alert-text strong { display: block; margin-bottom: 0.15rem; }
+
+  .footer { text-align: center; color: var(--text-dim); font-size: 0.7rem; margin-top: 2rem; opacity: 0.6; }
+
+  @media (max-width: 700px) {
+    .container { padding: 1rem; }
+    .header h1 { font-size: 1.5rem; }
+    .projects-grid, .charts-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="container">
+
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <h1>Portafolio PMO</h1>
+        <p class="subtitle">Departamento de Innovación — RETABET</p>
+      </div>
+      <div class="date">30 de marzo de 2026</div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Proyectos activos</div>
+      <div class="kpi-value" style="color:var(--accent)">5</div>
+      <div class="kpi-sub">En 4 ámbitos de trabajo</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Horas invertidas</div>
+      <div class="kpi-value" style="color:var(--cyan)">~304 h</div>
+      <div class="kpi-sub">Trabajo ya realizado</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Horas restantes</div>
+      <div class="kpi-value" style="color:var(--amber)">~153 h</div>
+      <div class="kpi-sub">Estimación media</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Total estimado</div>
+      <div class="kpi-value" style="color:var(--green)">~457 h</div>
+      <div class="kpi-sub">Invertido + pendiente</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Deadline global</div>
+      <div class="kpi-value" style="color:var(--rose); font-size:1.5rem;">16 Abr</div>
+      <div class="kpi-sub">Fecha límite más tardía</div>
+    </div>
+  </div>
+
+  <!-- Deadlines timeline -->
+  <div class="timeline-bar">
+    <h3>Deadlines por proyecto</h3>
+    <div class="deadlines">
+      <div class="dl-chip"><span class="dot" style="background:var(--green)"></span> SAC Turnos · <strong>1 Abr</strong></div>
+      <div class="dl-chip"><span class="dot" style="background:var(--amber)"></span> RetaBet Tiendas · <strong>14-15 Abr</strong></div>
+      <div class="dl-chip"><span class="dot" style="background:var(--amber)"></span> Portugal SAC · <strong>15 Abr</strong></div>
+      <div class="dl-chip"><span class="dot" style="background:var(--red)"></span> ARRETA e-learning · <strong>16 Abr</strong></div>
+    </div>
+  </div>
+
+  <!-- Project cards -->
+  <div class="projects-grid">
+
+    <!-- 1. SAC Turnos -->
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">Gestión de Turnos SAC</div><div class="card-client">RETABET · Dpto. Innovación</div></div>
+        <span class="badge badge-green">90% — En prod.</span>
+      </div>
+      <div class="card-body">
+        <div class="progress-track"><div class="progress-fill" style="width:90%;background:var(--green)"></div></div>
+        <div class="progress-labels"><span>90 % completado · 17/22 fases</span><span>~50 h / ~60 h</span></div>
+        <div class="stat-row">
+          <div class="stat-pill"><span class="dot" style="background:var(--green)"></span> ~50 h invertidas</div>
+          <div class="stat-pill"><span class="dot" style="background:var(--amber)"></span> ~10 h restantes</div>
+          <div class="stat-pill"><span class="dot" style="background:var(--green)"></span> Riesgo: Bajo</div>
+        </div>
+        <div class="detail-section done">
+          <h4>Completado</h4>
+          <ul>
+            <li>Panel administradora completo (137 funciones)</li>
+            <li>Portal trabajador (63 funciones, 23 empleados)</li>
+            <li>Supabase: 10 tablas, RLS, triggers, backups</li>
+            <li>5 exportadores Excel, métricas, notificaciones</li>
+            <li>7 documentos: manual, auditoría, RGPD, estado</li>
+          </ul>
+        </div>
+        <button class="toggle-detail" onclick="toggleDetail(this)">Mostrar más ▾</button>
+        <div class="detail-extra">
+          <div class="detail-section pending">
+            <h4>Pendiente</h4>
+            <ul>
+              <li>Ejecutar SQL config (mover datos sensibles a DB) — 0,5 h</li>
+              <li>Feedback de Silvia + correcciones — 2-3 h</li>
+              <li>Cotejo rotaciones Excel — 2 h</li>
+            </ul>
+          </div>
+          <div class="detail-section blocked">
+            <h4>Bloqueado</h4>
+            <ul>
+              <li>Seguridad Fase 2 (Auth + JWT + 2FA) — esperando emails dept. técnico</li>
+            </ul>
+          </div>
+          <div class="detail-section risks">
+            <h4>Riesgos</h4>
+            <ul>
+              <li>RGPD: documentos sin firmar (responsabilidad legal)</li>
+              <li>Feedback Silvia determina si hay correcciones</li>
+            </ul>
+          </div>
+        </div>
+        <div class="deadline-tag">Deadline: <strong>1 de abril 2026</strong> (6 abr festivo) · Entregable HOY en 35 min</div>
+      </div>
+    </div>
+
+    <!-- 2. RetaBet Responsables Tiendas -->
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">Responsables de Tiendas</div><div class="card-client">RETABET · Visitas comerciales</div></div>
+        <span class="badge badge-amber">~50% — En curso</span>
+      </div>
+      <div class="card-body">
+        <div class="progress-track"><div class="progress-fill" style="width:50%;background:var(--amber)"></div></div>
+        <div class="progress-labels"><span>~50 % completado · Fases 1-2 ✓ / UX+F3 pendiente</span><span>9 días netos</span></div>
+        <div class="stat-row">
+          <div class="stat-pill"><span class="dot" style="background:var(--green)"></span> Fases 1-2 completas</div>
+          <div class="stat-pill"><span class="dot" style="background:var(--amber)"></span> ~9 sesiones IA restantes</div>
+          <div class="stat-pill"><span class="dot" style="background:var(--amber)"></span> Riesgo: Medio</div>
+        </div>
+        <div class="detail-section done">
+          <h4>Completado (Fases 1-2)</h4>
+          <ul>
+            <li>Auth Supabase: 8 usuarios, sesión persistente</li>
+            <li>47 tiendas importadas, filtrado por responsable</li>
+            <li>Storage fotos, GitHub Pages en producción</li>
+            <li>Visitas, tareas, home con datos reales</li>
+          </ul>
+        </div>
+        <button class="toggle-detail" onclick="toggleDetail(this)">Mostrar más ▾</button>
+        <div class="detail-extra">
+          <div class="detail-section pending">
+            <h4>Pendiente (prioridad alta)</h4>
+            <ul>
+              <li>UX v2: Home, calendario, formulario dual — 3-4 sesiones</li>
+              <li>Compromisos entre visitas — 1 sesión</li>
+              <li>Empleados por tienda + selector — 1 sesión</li>
+              <li>KPIs por tienda (condicionado a Excel) — 1-2 sesiones</li>
+              <li>Buffer / pruebas con usuario real — 1-2 sesiones</li>
+            </ul>
+          </div>
+          <div class="detail-section risks">
+            <h4>Riesgos / Alertas</h4>
+            <ul>
+              <li>🔴 Ventana pre-vacaciones: solo 3 días (27, 30, 31 mar)</li>
+              <li>🟡 Excel KPIs no disponible todavía</li>
+              <li>🟡 Listado empleados no cargado en Supabase</li>
+              <li>🟡 Sin pruebas reales de usuario antes del lanzamiento</li>
+            </ul>
+          </div>
+        </div>
+        <div class="deadline-tag">Deadline: <strong>14-15 abril 2026</strong> · Vacaciones 1-6 abr · Viabilidad: ALTA si acota alcance</div>
+      </div>
+    </div>
+
+    <!-- 3. Portugal P1 Documental -->
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">Portugal SAC — Documental</div><div class="card-client">RETABET Portugal · Procesamiento docs</div></div>
+        <span class="badge badge-green">85% — En plazo</span>
+      </div>
+      <div class="card-body">
+        <div class="progress-track"><div class="progress-fill" style="width:85%;background:var(--green)"></div></div>
+        <div class="progress-labels"><span>85 % completado · 7/10 fases</span><span>~32 h / ~38 h</span></div>
+        <div class="stat-row">
+          <div class="stat-pill"><span class="dot" style="background:var(--green)"></span> ~32 h invertidas</div>
+          <div class="stat-pill"><span class="dot" style="background:var(--amber)"></span> ~6 h restantes (doc 1)</div>
+          <div class="stat-pill"><span class="dot" style="background:var(--amber)"></span> Riesgo: Medio</div>
+        </div>
+        <div class="detail-section done">
+          <h4>Completado (7 fases)</h4>
+          <ul>
+            <li>System prompt optimizado</li>
+            <li>Documento 46 pág. analizado en profundidad</li>
+            <li>Traducción MD + PDF profesional</li>
+            <li>Contenido OneNote (PDF+MD), fichas agentes, FAQs</li>
+          </ul>
+        </div>
+        <button class="toggle-detail" onclick="toggleDetail(this)">Mostrar más ▾</button>
+        <div class="detail-extra">
+          <div class="detail-section pending">
+            <h4>Pendiente</h4>
+            <ul>
+              <li>Validación de entregables por usuario — ~3 h</li>
+              <li>Carga y organización en OneNote — ~3 h</li>
+              <li>⚠ Documentos adicionales — nº desconocido</li>
+            </ul>
+          </div>
+          <div class="detail-section risks">
+            <h4>Riesgos</h4>
+            <ul>
+              <li>Nº de documentos adicionales desconocido — puede escalar carga</li>
+            </ul>
+          </div>
+        </div>
+        <div class="deadline-tag">Deadline: <strong>15 abril 2026</strong> · Doc 1 casi cerrado</div>
+      </div>
+    </div>
+
+    <!-- 4. Portugal P2 Bot SAC -->
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">Portugal SAC — Bot IA</div><div class="card-client">RETABET Portugal · Chat interno agentes</div></div>
+        <span class="badge badge-red">20% — En riesgo</span>
+      </div>
+      <div class="card-body">
+        <div class="progress-track"><div class="progress-fill" style="width:20%;background:var(--red)"></div></div>
+        <div class="progress-labels"><span>20 % completado · 4/11 fases</span><span>~8 h / ~51 h</span></div>
+        <div class="stat-row">
+          <div class="stat-pill"><span class="dot" style="background:var(--green)"></span> ~8 h invertidas</div>
+          <div class="stat-pill"><span class="dot" style="background:var(--red)"></span> ~43 h restantes</div>
+          <div class="stat-pill"><span class="dot" style="background:var(--red)"></span> Riesgo: Alto</div>
+        </div>
+        <div class="detail-section done">
+          <h4>Completado (4 fases)</h4>
+          <ul>
+            <li>Concepto y requisitos definidos</li>
+            <li>Exploración opciones técnicas (API vs local)</li>
+            <li>Prototipo buscador HTML (sin IA)</li>
+            <li>Evaluación vs OneNote → se necesita IA</li>
+          </ul>
+        </div>
+        <button class="toggle-detail" onclick="toggleDetail(this)">Mostrar más ▾</button>
+        <div class="detail-extra">
+          <div class="detail-section blocked">
+            <h4>Bloqueado</h4>
+            <ul>
+              <li>⛔ Decisión técnica API (Anthropic/OpenAI/Ollama) — bloquea 100% restante</li>
+            </ul>
+          </div>
+          <div class="detail-section pending">
+            <h4>Pendiente</h4>
+            <ul>
+              <li>Desarrollo chat con IA integrada — ~18 h</li>
+              <li>Integración system prompt SAC — ~3 h</li>
+              <li>Carga base documental (depende de P1) — ~5 h</li>
+              <li>Pruebas funcionales SAC — ~5 h</li>
+              <li>Ajustes + documentación + despliegue — ~10 h</li>
+            </ul>
+          </div>
+          <div class="detail-section risks">
+            <h4>Riesgos</h4>
+            <ul>
+              <li>Sin decisión técnica antes del 27 mar → plazo inviable</li>
+              <li>Depende de P1 para base documental</li>
+              <li>Semanas 2-3 al 100% capacidad, sin margen</li>
+            </ul>
+          </div>
+        </div>
+        <div class="deadline-tag">Deadline: <strong>15 abril 2026</strong> · ⛔ Decisión técnica bloqueante</div>
+      </div>
+    </div>
+
+    <!-- 5. ARRETA -->
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">ARRETA — E-learning</div><div class="card-client">RETABET · Plataforma formación</div></div>
+        <span class="badge badge-cyan">72% — Riesgo controlado</span>
+      </div>
+      <div class="card-body">
+        <div class="progress-track"><div class="progress-fill" style="width:72%;background:var(--cyan)"></div></div>
+        <div class="progress-labels"><span>72 % completado · 5/12 fases hechas, 2 en curso</span><span>~164 h / ~202 h</span></div>
+        <div class="stat-row">
+          <div class="stat-pill"><span class="dot" style="background:var(--green)"></span> ~164 h invertidas</div>
+          <div class="stat-pill"><span class="dot" style="background:var(--amber)"></span> ~38 h restantes</div>
+          <div class="stat-pill"><span class="dot" style="background:var(--amber)"></span> Riesgo: Medio</div>
+        </div>
+        <div class="detail-section done">
+          <h4>Completado (5 fases, ~150 h)</h4>
+          <ul>
+            <li>8 módulos M0-M6 + casos + examen final</li>
+            <li>Interactividad: mapa CCAA, simuladores, quizzes</li>
+            <li>Sistema de vidas + feedback + racha</li>
+            <li>Avatar RETA (Claude API + proxy)</li>
+            <li>Certificado Canvas PDF + Analytics Google Sheets</li>
+          </ul>
+        </div>
+        <button class="toggle-detail" onclick="toggleDetail(this)">Mostrar más ▾</button>
+        <div class="detail-extra">
+          <div class="detail-section pending">
+            <h4>Pendiente / En curso</h4>
+            <ul>
+              <li>Dashboard instructor (75% avanzado) — ~3 h</li>
+              <li>QA completo cross-browser (40%) — ~5 h</li>
+              <li>🔴 Avatar dinámico (vídeo generativo) — ~10 h</li>
+              <li>Glosario emergente + modo repaso — ~7 h</li>
+              <li>Distribución v1 — ~2 h</li>
+            </ul>
+          </div>
+          <div class="detail-section risks">
+            <h4>Riesgos / Alertas</h4>
+            <ul>
+              <li>🔴 Avatar dinámico: sin proveedor definitivo (HeyGen/D-ID)</li>
+              <li>🟡 Dashboard sin datos reales (hoja Resumen vacía)</li>
+              <li>PWA aplazado a v2 (recomendado)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="deadline-tag">Deadline: <strong>16 abril 2026</strong> · Viable a ~13 h/semana · Núcleo ya distribuible</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <h3>Horas invertidas por proyecto</h3>
+      <canvas id="chartHoras" height="280"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Invertidas vs. pendientes</h3>
+      <canvas id="chartComparison" height="280"></canvas>
+    </div>
+  </div>
+
+  <!-- Summary table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Proyecto</th>
+          <th>Estado</th>
+          <th>Avance</th>
+          <th>H. invertidas</th>
+          <th>H. restantes</th>
+          <th>Deadline</th>
+          <th>Riesgo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>SAC Turnos</strong></td>
+          <td><span class="badge badge-green">En prod.</span></td>
+          <td>90%</td><td>~50 h</td><td>~10 h</td>
+          <td>1 Abr</td><td class="risk-bajo">Bajo</td>
+        </tr>
+        <tr>
+          <td><strong>RetaBet Tiendas</strong></td>
+          <td><span class="badge badge-amber">En curso</span></td>
+          <td>~50%</td><td>~50 h</td><td>~14 h</td>
+          <td>14-15 Abr</td><td class="risk-medio">Medio</td>
+        </tr>
+        <tr>
+          <td><strong>Portugal Documental</strong></td>
+          <td><span class="badge badge-green">En plazo</span></td>
+          <td>85%</td><td>~32 h</td><td>~6 h+</td>
+          <td>15 Abr</td><td class="risk-medio">Medio</td>
+        </tr>
+        <tr>
+          <td><strong>Portugal Bot IA</strong></td>
+          <td><span class="badge badge-red">En riesgo</span></td>
+          <td>20%</td><td>~8 h</td><td>~43 h</td>
+          <td>15 Abr</td><td class="risk-alto">Alto</td>
+        </tr>
+        <tr>
+          <td><strong>ARRETA E-learning</strong></td>
+          <td><span class="badge badge-cyan">Riesgo ctrl.</span></td>
+          <td>72%</td><td>~164 h</td><td>~38 h</td>
+          <td>16 Abr</td><td class="risk-medio">Medio</td>
+        </tr>
+        <tr style="background:rgba(99,102,241,0.06);">
+          <td><strong>TOTAL</strong></td>
+          <td>—</td><td>—</td>
+          <td><strong>~304 h</strong></td><td><strong>~111-153 h</strong></td>
+          <td>—</td><td>—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Alerts -->
+  <div class="alerts">
+    <h3>Alertas críticas del portafolio</h3>
+    <div class="alert-item">
+      <span class="alert-icon">⛔</span>
+      <div class="alert-text"><strong>Bot Portugal — Decisión técnica bloqueante</strong>Elegir API (Anthropic/OpenAI/Ollama) antes del 27 mar. Sin decisión, el plazo del 15 abr es inviable.</div>
+    </div>
+    <div class="alert-item">
+      <span class="alert-icon">🔴</span>
+      <div class="alert-text"><strong>RetaBet Tiendas — Ventana pre-vacaciones crítica</strong>Solo 3 días (27, 30, 31 mar) para cerrar UX v2 en producción antes de vacaciones 1-6 abr.</div>
+    </div>
+    <div class="alert-item">
+      <span class="alert-icon">🔴</span>
+      <div class="alert-text"><strong>ARRETA — Avatar dinámico sin proveedor</strong>Decidir HeyGen/D-ID esta semana. Sin decisión antes del 31 mar, el avatar no entra en v1.</div>
+    </div>
+    <div class="alert-item">
+      <span class="alert-icon">🟡</span>
+      <div class="alert-text"><strong>SAC Turnos — Seguridad Fase 2 bloqueada</strong>Esperando emails corporativos del dept. técnico para migrar a Supabase Auth + 2FA.</div>
+    </div>
+    <div class="alert-item">
+      <span class="alert-icon">🟡</span>
+      <div class="alert-text"><strong>Portugal Documental — Alcance desconocido</strong>Nº de documentos adicionales sin definir. Puede escalar la carga significativamente.</div>
+    </div>
+  </div>
+
+  <div class="footer">Dashboard PMO · Departamento de Innovación RETABET · 30 marzo 2026</div>
+</div>
+
+<script>
+function toggleDetail(btn) {
+  const extra = btn.nextElementSibling;
+  extra.classList.toggle('open');
+  btn.textContent = extra.classList.contains('open') ? 'Ocultar detalle ▴' : 'Mostrar más ▾';
+}
+
+const textColor = '#8b8d9a';
+const gridColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.color = textColor;
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+new Chart(document.getElementById('chartHoras'), {
+  type: 'doughnut',
+  data: {
+    labels: ['SAC Turnos', 'RetaBet Tiendas', 'Portugal Documental', 'Portugal Bot IA', 'ARRETA E-learning'],
+    datasets: [{
+      data: [50, 50, 32, 8, 164],
+      backgroundColor: ['#22c55e', '#f59e0b', '#06b6d4', '#ef4444', '#6366f1'],
+      borderColor: '#1a1d27',
+      borderWidth: 3,
+      hoverOffset: 8
+    }]
+  },
+  options: {
+    responsive: true,
+    cutout: '60%',
+    plugins: {
+      legend: { position: 'bottom', labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10, font: { size: 11 } } }
+    }
+  }
+});
+
+new Chart(document.getElementById('chartComparison'), {
+  type: 'bar',
+  data: {
+    labels: ['SAC Turnos', 'RetaBet', 'PT Documental', 'PT Bot IA', 'ARRETA'],
+    datasets: [
+      { label: 'Invertidas', data: [50, 50, 32, 8, 164], backgroundColor: '#6366f1', borderRadius: 6 },
+      { label: 'Restantes', data: [10, 14, 6, 43, 38], backgroundColor: 'rgba(99,102,241,0.25)', borderRadius: 6 }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom', labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10, font: { size: 11 } } }
+    },
+    scales: {
+      x: { stacked: true, grid: { display: false }, ticks: { color: textColor, font: { size: 10 } } },
+      y: { stacked: true, grid: { color: gridColor }, ticks: { color: textColor } }
+    }
+  }
+});
+</script>
+</body>
+</html>
